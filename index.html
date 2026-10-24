@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>考研学习助手 · 专注 · 记录 · 提升</title>
+<meta name="theme-color" content="#4f6ef7">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="考研助手">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="css/style.css?v=1.1">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-logo">📚</span>
+      <div><div class="brand-name">考研学习助手</div><div class="brand-sub">STUDY TRACKER</div></div>
+    </div>
+    <nav class="nav">
+      <button class="nav-btn active" data-view="dashboard"><span class="nav-ico">🏠</span>概览</button>
+      <button class="nav-btn" data-view="focus"><span class="nav-ico">⏱</span>专注番茄钟</button>
+      <button class="nav-btn" data-view="log"><span class="nav-ico">📅</span>时间记录</button>
+      <button class="nav-btn" data-view="materials"><span class="nav-ico">📖</span>学习资料</button>
+      <button class="nav-btn" data-view="mistakes"><span class="nav-ico">❌</span>错题本</button>
+      <button class="nav-btn" data-view="todos"><span class="nav-ico">✅</span>学习计划</button>
+      <button class="nav-btn" data-view="stats"><span class="nav-ico">📊</span>统计</button>
+      <button class="nav-btn" data-view="settings"><span class="nav-ico">⚙️</span>设置</button>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="mini-timer" id="mini-timer" hidden></button>
+      <div class="mini-count" id="mini-count"></div>
+    </div>
+  </aside>
+  <main id="main" class="main"></main>
+</div>
+<div id="modal-root"></div>
+<div id="toast-root"></div>
+<datalist id="subject-list"></datalist>
+<script src="js/store.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/timer.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
