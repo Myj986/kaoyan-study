@@ -89,6 +89,9 @@ const Views={
       const wTotal=week7.reduce((a,b)=>a+b.v,0);
       const dueToday=d.todos.filter(t=>!t.done&&t.due&&t.due<=today).slice(0,5);
       const recentM=d.mistakes.slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0,3);
+      const dueN=dueMistakes(today).length;
+      const nodes=examNodes(today);
+      const nextNode=nodes.find(n=>n.date>=today);
       const hour=new Date().getHours();
       const greet=hour<6?'夜深了':hour<12?'上午好':hour<14?'中午好':hour<18?'下午好':'晚上好';
       const name=st.name?'，'+st.name:'';
@@ -108,6 +111,14 @@ const Views={
           '<div class="stat-num">'+fmtH(wTotal)+'</div>'+
           '<div class="stat-sub">🔥 连续学习 '+streakDays()+' 天</div></div>'+
       '</div>'+
+      '<div class="card nodes-bar">'+
+        nodes.map(n=>{
+          const past=n.date<today;
+          const isNext=nextNode&&nextNode.date===n.date&&!past;
+          return '<span class="node'+(past?' past':'')+(isNext?' next':'')+'" title="'+esc(n.date)+(past?'':' · 还有 '+daysBetween(today,n.date)+' 天')+'">'+
+            (past?'✓ ':'')+esc(n.name)+(past?'':'<b>'+daysBetween(today,n.date)+'天</b>')+'</span>';
+        }).join('')+
+      '</div>'+
       '<div class="grid-2">'+
         '<div class="card"><div class="card-title">近 7 天学习时长</div><canvas id="dash-bar" class="chart-canvas"></canvas></div>'+
         '<div class="card"><div class="card-title">近 30 天科目分布</div>'+
@@ -121,6 +132,7 @@ const Views={
             '<span class="t-due'+(t.due<today?' overdue':'')+'">'+(t.due<today?'逾期 ':'')+esc(t.due)+'</span></label>').join('')
           :'<div class="empty">今天没有待办，去<a class="link" data-go="todos">计划页</a>安排一下吧 ☀️</div>')+'</div>'+
         '<div class="card"><div class="card-title">最近错题 <a class="link" data-go="mistakes">错题本 →</a></div>'+
+          (dueN?'<div class="due-review"><span>🔥 今天该复习 <b>'+dueN+'</b> 题（艾宾浩斯到期）</span><button class="btn sm primary" id="dash-review">开始复习</button></div>':'')+
           (recentM.length?recentM.map(m=>
             '<div class="recent-mis"><span class="chip" style="'+subChipStyle(m.subject)+'">'+esc(m.subject)+'</span>'+
             '<span class="rm-q" title="'+esc(m.question)+'">'+esc(m.question)+'</span></div>').join('')
@@ -140,6 +152,8 @@ const Views={
       const sub30=subjectTotals(lastNDays(30));
       donutLegend('#dash-donut','#dash-legend',sub30,fmtH(sub30.reduce((a,s)=>a+s.value,0)),'近30天');
       bindTodoToggle();
+      const dr=$('#dash-review');
+      if(dr)dr.onclick=()=>startReview();
     }
   },
 
@@ -166,6 +180,10 @@ const Views={
           '</div>'+
           '<div class="pomo-subject">科目：<select id="pomo-subject" class="input"'+(T.running?' disabled':'')+'>'+
             subs.map(s=>'<option'+(s===T.subject?' selected':'')+'>'+esc(s)+'</option>').join('')+'</select></div>'+
+          '<div class="pomo-subject">环境音：<select id="pomo-noise" class="input">'+
+            [['none','无'],['white','白噪音'],['rain','雨声']].map(it=>
+              '<option value="'+it[0]+'"'+(T.noise===it[0]?' selected':'')+'>'+it[1]+'</option>').join('')+'</select>'+
+            '<span class="muted small">专注时播放，休息自动静音</span></div>'+
           '<div class="pomo-controls">'+
             '<button id="pomo-start" class="btn primary big"></button>'+
             '<button id="pomo-reset" class="btn">重置</button>'+
@@ -184,7 +202,8 @@ const Views={
             '1️⃣ 选好科目，点击「开始专注」，这 25 分钟只做这一件事；<br>'+
             '2️⃣ 铃声响后休息 5 分钟，离开桌前走一走；<br>'+
             '3️⃣ 每 '+p.longEvery+' 个番茄后长休息 15 分钟；<br>'+
-            '4️⃣ 被打断或想提前结束？点「结束并记录」，已专注的时长照样计入 ✅'+
+            '4️⃣ 被打断或想提前结束？点「结束并记录」，已专注的时长照样计入 ✅；<br>'+
+            '5️⃣ 容易分心？选一个环境音，白噪音或雨声陪你入定 🌧️'+
           '</div></div>'+
         '</div>'+
       '</div>';
@@ -200,6 +219,7 @@ const Views={
       const ps=$('#pomo-skip');
       if(ps)ps.onclick=()=>{T.skip();App.onTimerStateChange();};
       $('#pomo-subject').onchange=e=>{T.subject=e.target.value;T.persist();T.updateUI();};
+      $('#pomo-noise').onchange=e=>{T.setNoise(e.target.value);};
       $$('.mode-pills button').forEach(b=>b.onclick=()=>{
         if(T.running){toast('请先暂停或完成当前阶段');return;}
         T.setMode(b.dataset.pm);
@@ -336,6 +356,7 @@ const Views={
       let list=Store.data.mistakes.slice().sort((a,b)=>b.createdAt-a.createdAt);
       if(f.subject)list=list.filter(m=>m.subject===f.subject);
       if(f.mastery)list=list.filter(m=>m.mastery===f.mastery);
+      if(f.dueOnly)list=list.filter(m=>ebDueDate(m)<=Store.today());
       return ''+
       '<div class="page-head"><h2>错题本</h2>'+
         '<span><button class="btn" id="review-mis" style="margin-right:8px">🎲 随机复习</button>'+
@@ -346,6 +367,7 @@ const Views={
           '<option value="">全部状态</option>'+
           Object.keys(MASTERY_LABEL).map(k=>'<option value="'+k+'"'+(f.mastery===k?' selected':'')+'>'+MASTERY_LABEL[k]+'</option>').join('')+
         '</select>'+
+        '<button class="btn sm'+(f.dueOnly?' primary':'')+'" id="mf-due">🔥 今日该复习 '+dueMistakes(Store.today()).length+'</button>'+
         '<span class="muted small">共 '+list.length+' 题</span></div>'+
       (list.length?list.map(m=>
         '<div class="card mis-card m-'+esc(m.mastery)+'">'+
@@ -369,6 +391,7 @@ const Views={
       $('#review-mis').onclick=startReview;
       $('#mf-subject2').onchange=e=>{f.subject=e.target.value;App.render();};
       $('#mf-mastery').onchange=e=>{f.mastery=e.target.value;App.render();};
+      $('#mf-due').onclick=()=>{f.dueOnly=!f.dueOnly;App.render();};
       $$('[data-master]').forEach(b=>b.onclick=()=>{
         const m=Store.data.mistakes.find(x=>x.id===b.dataset.master);
         if(!m)return;
@@ -621,6 +644,22 @@ function allDays(){
   return daysRange(ds[0],Store.today());
 }
 
+/* 考研关键节点：相对初试日期推算（确认时间各省略有差异，取常见值，悬浮可见日期） */
+function examNodes(){
+  const st=Store.data.settings;
+  const y=Number(st.examDate.slice(0,4));
+  const e=parseDate(st.examDate);
+  e.setDate(e.getDate()-10);                        // 准考证：考前 10 天左右开放打印
+  return [
+    {name:'网上报名',date:y+'-10-05'},
+    {name:'网上确认',date:y+'-11-01'},
+    {name:'打印准考证',date:fmtDate(e)},
+    {name:'考研初试',date:st.examDate},
+    {name:'成绩公布',date:(y+1)+'-02-25'},
+    {name:'国家线公布',date:(y+1)+'-03-15'}
+  ];
+}
+
 /* ================= 各类弹窗表单 ================= */
 function openSessionModal(id){
   const s=id?Store.data.sessions.find(x=>x.id===id):null;
@@ -742,7 +781,9 @@ function openMistakeDetail(id){
 
 function startReview(){
   const d=Store.data;
-  let pool=d.mistakes.filter(m=>m.mastery!=='mastered');
+  let pool=dueMistakes(Store.today());
+  const dueFirst=pool.length>0;
+  if(!pool.length)pool=d.mistakes.filter(m=>m.mastery!=='mastered');
   if(!pool.length)pool=d.mistakes.slice();
   if(!pool.length)return toast('错题本还是空的，先去记录错题吧');
   let cur=null,count=0;
@@ -762,6 +803,7 @@ function startReview(){
       '<div class="rev-head"><h3>🎲 随机复习 · 第 '+count+' 题</h3>'+
         '<span class="chip" style="'+subChipStyle(cur.subject)+'">'+esc(cur.subject)+'</span></div>'+
       '<div class="rev-q">'+esc(cur.question)+'</div>'+
+      (dueFirst?'<p class="muted small" style="margin-top:8px">📌 优先复习今天到期的题（艾宾浩斯）</p>':'')+
       '<div id="rev-body"></div>'+
       (cur.source?'<p class="muted small" style="margin-top:10px">来源：'+esc(cur.source)+'</p>':'')+
       '<div class="modal-actions"><button class="btn" id="rev-exit">结束复习</button>'+
@@ -792,7 +834,7 @@ const App={
   f:{
     log:{subject:'',date:''},
     mat:{subject:'',status:''},
-    mis:{subject:'',mastery:''},
+    mis:{subject:'',mastery:'',dueOnly:false},
     stats:{range:7}
   },
 

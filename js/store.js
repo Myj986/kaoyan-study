@@ -64,3 +64,21 @@ const Store={
     this.save();
   }
 };
+
+/* ================= 艾宾浩斯复习调度 =================
+   间隔序列：第 n 次复习后再过 EB_INTERVALS[n] 天到期；
+   评"还不会"的题明天就再来（间隔强制 1 天）。 */
+const EB_INTERVALS=[1,2,4,7,15,30];
+function ebInterval(m){
+  if(m.mastery==='again'&&(m.reviews||0)>0)return 1;
+  return EB_INTERVALS[Math.min(m.reviews||0,EB_INTERVALS.length-1)];
+}
+function ebDueDate(m){
+  const base=m.lastReview||fmtDate(new Date(m.createdAt||Date.now()));
+  const d=parseDate(base);
+  d.setDate(d.getDate()+ebInterval(m));
+  return fmtDate(d);
+}
+function dueMistakes(today){
+  return Store.data.mistakes.filter(m=>ebDueDate(m)<=today);
+}

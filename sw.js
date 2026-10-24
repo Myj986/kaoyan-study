@@ -2,7 +2,7 @@
 
 /* Service Worker：缓存应用外壳，支持离线使用与"添加到主屏幕"
    更新方式：改代码后把 CACHE_VERSION 加一，用户下次联网打开即自动换新 */
-const CACHE_VERSION = 'kaoyan-v1.0';
+const CACHE_VERSION = 'kaoyan-v1.1';
 const PRECACHE = [
   './',
   './index.html',

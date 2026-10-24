@@ -9,7 +9,8 @@ const Timer={
   remainingMs:0,       // 暂停/待机时的剩余毫秒
   subject:'',
   cycles:0,            // 本次启动以来完成的专注数
-  _ac:null,
+  noise:'none',        // none | white | rain
+  _ac:null,_noise:null,
 
   durations(){const p=Store.data.settings.pomo;return{focus:p.focus*60000,short:p.shortBreak*60000,long:p.longBreak*60000};},
   total(){return this.durations()[this.mode];},
@@ -52,7 +53,7 @@ const Timer={
         mode:this.mode,running:this.running,
         endAt:this.running?this.endAt:0,
         remainingMs:this.running?0:this.remainingMs,
-        subject:this.subject,cycles:this.cycles
+        subject:this.subject,cycles:this.cycles,noise:this.noise
       }));
     }catch(e){}
   },
@@ -64,29 +65,34 @@ const Timer={
     this.endAt=Date.now()+(this.remainingMs>0?this.remainingMs:this.total());
     this.running=true;
     this.persist();
+    this.updateNoise();
   },
   pause(){
     if(!this.running)return;
     this.remainingMs=Math.max(0,this.endAt-Date.now());
     this.running=false;
     this.persist();
+    this.updateNoise();
   },
   reset(){
     this.running=false;
     this.remainingMs=this.total();
     this.persist();
+    this.updateNoise();
   },
   setMode(m){
     if(this.running)return;
     this.mode=m;
     this.remainingMs=this.total();
     this.persist();
+    this.updateNoise();
   },
   skip(){            // 跳过休息
     this.running=false;
     this.mode='focus';
     this.remainingMs=this.total();
     this.persist();
+    this.updateNoise();
   },
   finishEarly(){     // 结束专注并记录已专注时长
     const elapsed=this.total()-this.remaining();
@@ -101,6 +107,7 @@ const Timer={
     }else{
       toast('不足 1 分钟，未记录');
     }
+    this.updateNoise();
     App.onTimerStateChange();
   },
 
@@ -129,6 +136,7 @@ const Timer={
       this.remainingMs=this.total();
     }
     this.persist();
+    this.updateNoise();   // 专注结束静音；休息不播环境音
     App.onTimerStateChange();
   },
 
@@ -163,6 +171,47 @@ const Timer={
       if(!this._ac)this._ac=new AC();
       if(this._ac.state==='suspended')this._ac.resume();
     }catch(e){}
+  },
+  /* ---- 环境音：WebAudio 实时合成，无音频文件 ---- */
+  setNoise(t){
+    this.noise=['white','rain'].indexOf(t)>=0?t:'none';
+    this.persist();
+    this.updateNoise();
+  },
+  startNoise(){
+    try{
+      this.ensureAudio();
+      if(!this._ac||this._ac.state!=='running')return;
+      this.stopNoise();
+      const ctx=this._ac,len=2*ctx.sampleRate;
+      const buf=ctx.createBuffer(1,len,ctx.sampleRate);
+      const d=buf.getChannelData(0);
+      if(this.noise==='white'){
+        for(let i=0;i<len;i++)d[i]=Math.random()*2-1;          // 白噪音
+      }else{
+        let last=0;                                             // 布朗噪音（低频轰鸣）
+        for(let i=0;i<len;i++){const w=Math.random()*2-1;last=(last+0.02*w)/1.02;d[i]=last*3.5;}
+      }
+      const src=ctx.createBufferSource();
+      src.buffer=buf;src.loop=true;
+      const gain=ctx.createGain();gain.gain.value=0.12;        // 音量固定偏低，只做背景
+      if(this.noise==='rain'){
+        const f=ctx.createBiquadFilter();                       // 雨声 = 布朗噪音 + 低通
+        f.type='lowpass';f.frequency.value=900;
+        src.connect(f);f.connect(gain);
+      }else src.connect(gain);
+      gain.connect(ctx.destination);
+      src.start();
+      this._noise={src:src};
+    }catch(e){}
+  },
+  stopNoise(){
+    try{if(this._noise){this._noise.src.stop();this._noise=null;}}catch(e){this._noise=null;}
+  },
+  updateNoise(){
+    const should=this.running&&this.mode==='focus'&&this.noise!=='none';
+    if(should&&!this._noise)this.startNoise();
+    if(!should&&this._noise)this.stopNoise();
   },
   beep(){
     try{
