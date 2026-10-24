@@ -2,6 +2,29 @@
 
 一个**零依赖、纯本地**的考研学习管理网页，双击 `index.html` 即可使用（推荐 Chrome / Edge 浏览器），无需联网、无需安装任何环境。
 
+## 🌐 在线地址
+
+**https://myj986.github.io/kaoyan-study/**
+
+已部署在 GitHub Pages（公开仓库 [Myj986/kaoyan-study](https://github.com/Myj986/kaoyan-study)），把网址发给同学即可使用，每人数据各自独立保存在自己的浏览器里。
+
+### 安装到手机 / 电脑桌面（PWA）
+
+- **安卓手机（Chrome）**：打开网址 → 点浏览器菜单 → 「添加到主屏幕」，之后像 App 一样全屏使用；
+- **iPhone（Safari）**：打开网址 → 分享按钮 → 「添加到主屏幕」；
+- **电脑（Chrome / Edge）**：地址栏右侧的「安装」图标，一键安装为桌面应用；
+- 支持离线：第一次打开后会自动缓存全部文件，之后断网也能用（数据存在本地，联网时自动检查更新）。
+
+### 更新线上版本
+
+改完代码后（若改了 HTML/CSS/JS，记得把 `sw.js` 顶部的 `CACHE_VERSION` 加一，例如 `kaoyan-v1.1`）：
+
+```bash
+git add -A && git commit -m "更新说明" && git push
+```
+
+推送后 1 分钟左右自动生效；用户下次联网打开即为新版本。
+
 ## 功能一览
 
 | 模块 | 说明 |
